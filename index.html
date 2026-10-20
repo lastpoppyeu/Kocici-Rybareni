@@ -40,10 +40,14 @@
   .setup p { font-family:sans-serif; font-size:.9rem; color:#555; margin:0 0 12px; }
   .topics { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
   .topic { font-family:sans-serif; font-size:.95rem; display:flex; align-items:center; gap:6px; background:#efe7d6; padding:7px 11px; border-radius:20px; cursor:pointer; user-select:none; border:2px solid transparent; }
-  .topic input { margin:0; accent-color:var(--bad); }
-  .topic.on { background:#f6d9d9; border-color:var(--bad); text-decoration:line-through; color:#7a2222; }
+  .topic .st { font-weight:bold; width:1em; text-align:center; }
+  .topic.white { background:#d7efdf; border-color:var(--ok); color:#1d5a37; }
+  .topic.black { background:#f6d9d9; border-color:var(--bad); text-decoration:line-through; color:#7a2222; }
+  .setup h3 { font-family:sans-serif; font-size:1rem; margin:16px 0 4px; }
   .setup label.lbl { font-family:sans-serif; font-size:.9rem; display:block; margin:6px 0 4px; color:#444; }
   .setup .small { font-family:sans-serif; font-size:.8rem; color:#777; margin-top:4px; }
+  .catlabel { font-family:sans-serif; font-size:.85rem; color:#777; margin:12px 0 6px; }
+  ul.cats.ans { margin-bottom:12px; }
   .kbd { font-family:monospace; background:#eee; padding:1px 5px; border-radius:4px; border:1px solid #ccc; }
 </style>
 </head>
@@ -54,18 +58,24 @@
     <div class="sub">Uhodni náhodný článek z české Wikipedie podle jeho kategorií</div>
   </header>
 
-  <!-- Nastavení blacklistu -->
+  <!-- Filtr -->
   <div class="card setup hidden" id="setupView">
-    <h2>🚫 Blacklist témat</h2>
-    <p>Označ témata, která nechceš hrát. Články, které mají kategorie z těchto témat, se nebudou zobrazovat.</p>
+    <h2>Filtr</h2>
+    <p>Klikáním na téma přepínáš: <b>nic</b> → <b style="color:var(--ok)">✓ jen tohle (whitelist)</b> → <b style="color:var(--bad)">✗ vyřadit (blacklist)</b> → nic.<br>
+    Když je zvolený aspoň jeden whitelist, hrají se jen články z těchto témat. Blacklist má vždy přednost.</p>
     <div class="topics" id="topics"></div>
-    <label class="lbl" for="customBl">Vlastní slova (oddělená čárkou) – vyřadí článek, pokud jeho kategorie obsahuje slovo začínající tímto textem:</label>
+
+    <label class="lbl" for="customWl">✓ Whitelist – vlastní slova (oddělená čárkou):</label>
+    <input type="text" id="customWl" placeholder="např. hrady, malíři, vynálezy">
+    <label class="lbl" for="customBl" style="margin-top:10px">✗ Blacklist – vlastní slova (oddělená čárkou):</label>
     <input type="text" id="customBl" placeholder="např. fotbalist, obce v okrese, brouci">
+    <div class="small">Slovo se hledá jako začátek slova v názvech kategorií článku. Velikost písmen ani diakritika nehrají roli.</div>
+
     <label class="lbl" for="known" style="margin-top:14px">🌍 Známost článků (podle počtu jazykových verzí Wikipedie):</label>
     <select id="known" style="width:100%;padding:10px;font-size:1rem;border-radius:8px;border:2px solid #ccc"></select>
-    <div class="small">Velikost písmen ani diakritika nehrají roli. Výběr se uloží pro příště.</div>
+    <div class="small">Nastavení se uloží pro příště.</div>
     <div class="btns">
-      <button type="button" class="sec" id="btnAll">Vše povolit</button>
+      <button type="button" class="sec" id="btnAll">Zrušit filtr</button>
       <button type="button" class="sec right" id="btnBack">Zpět bez změn</button>
       <button type="button" id="btnStart">Uložit a pokračovat</button>
     </div>
@@ -73,7 +83,7 @@
 
   <div class="card" id="gameCard">
     <div class="scorebar">
-      <button type="button" class="link" id="btnSettings" style="padding:0">⚙️ Blacklist</button>
+      <button type="button" class="link" id="btnSettings" style="padding:0">⚙️ Filtr</button>
     </div>
 
     <div id="loading" class="loading">Lovím náhodný článek z Wikipedie… 🎣</div>
@@ -99,6 +109,8 @@
       <div class="anslabel" id="ansLabel"></div>
       <div class="answer" id="ansTitle"></div>
       <div class="accepted" id="accepted"></div>
+      <div class="catlabel">Kategorie:</div>
+      <ul class="cats ans" id="ansCats"></ul>
       <div class="extract"><img id="thumb" class="thumb hidden" alt=""><span id="extract"></span></div>
       <div class="btns" style="clear:both">
         <button type="button" id="btnWiki" class="link">Otevřít na Wikipedii</button>
@@ -172,7 +184,7 @@ function firstParagraph(txt){
   return (txt||"").split(/\n+/).map(s=>s.trim()).find(s=>s.length>0) || "";
 }
 
-// ====================== BLACKLIST TÉMAT ======================
+// ====================== TÉMATA PRO FILTR ======================
 const TOPICS = [
   { id:"sport",   name:"⚽ Sport", kw:["sport","fotbal","hokej","hokejist","tenis","atlet","basketbal","volejbal","hazen","florbal","cyklist","lyzar","biatlon","plavc","plavani","box","zapas","zavodni","olympi","mistrovstvi","trener","stadion","formule","motorsport","sachist","golf","rugby","baseball","kriket","olympijsk","sportovni","hraci","sezon","liga","ligy"] },
   { id:"politika",name:"🏛️ Politika", kw:["politi","poslan","senator","senat","ministr","prezident","premier","volby","volebni","diplomat","velvyslan","starost","hejtman","zastupitel","parlament","komunist","strany"] },
@@ -195,40 +207,68 @@ const KNOWN_LEVELS = [
   { v:0,  name:"🎲 Cokoliv (i úplné obskurnosti)" }
 ];
 
-let blacklist = Object.assign({topics:[],custom:"",langs:40}, JSON.parse(localStorage.getItem("krr_blacklist") || "{}"));
-let blKeywords = [];
-function minLangs(){ return blacklist.langs ?? 40; }
+// Filtr: whitelist + blacklist (témata i vlastní slova)
+let filter = (() => {
+  const f = Object.assign({white:[],black:[],customWl:"",customBl:"",langs:40}, JSON.parse(localStorage.getItem("krr_filter") || "{}"));
+  // převzetí starého nastavení blacklistu
+  const old = JSON.parse(localStorage.getItem("krr_blacklist") || "null");
+  if(old && !localStorage.getItem("krr_filter")){
+    f.black = old.topics || []; f.customBl = old.custom || ""; f.langs = old.langs ?? 40;
+  }
+  return f;
+})();
+let blKeywords = [], wlKeywords = [];
+function minLangs(){ return filter.langs ?? 40; }
 
 function normKw(s){ return stripDia(String(s).toLowerCase()).replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," "); }
-function buildKeywords(){
+function kwList(topicIds, custom){
   const kws = [];
-  TOPICS.filter(t => blacklist.topics.includes(t.id)).forEach(t => kws.push(...t.kw));
-  blacklist.custom.split(",").forEach(k => kws.push(k));
-  blKeywords = [...new Set(kws.map(k => normKw(k).trim()))].filter(Boolean);
+  TOPICS.filter(t => topicIds.includes(t.id)).forEach(t => kws.push(...t.kw));
+  custom.split(",").forEach(k => kws.push(k));
+  return [...new Set(kws.map(k => normKw(k).trim()))].filter(Boolean);
 }
-function isBlacklisted(rawCats){
-  if(!blKeywords.length) return false;
+function buildKeywords(){
+  blKeywords = kwList(filter.black, filter.customBl);
+  wlKeywords = kwList(filter.white, filter.customWl);
+}
+function catsMatch(rawCats, kws){
   return rawCats.some(c => {
     const n = " " + normKw(c.replace(/^Kategorie:/,"")) + " ";
-    return blKeywords.some(k => n.includes(" " + k));
+    return kws.some(k => n.includes(" " + k));
   });
 }
+function passesFilter(rawCats){
+  if(blKeywords.length && catsMatch(rawCats, blKeywords)) return false;
+  if(wlKeywords.length && !catsMatch(rawCats, wlKeywords)) return false;
+  return true;
+}
+
+// Stav tématu v nastavení: "" / "white" / "black"
+const STATE_MARK = { "":"○", white:"✓", black:"✗" };
 function renderSetup(){
   $("topics").innerHTML = TOPICS.map(t => {
-    const on = blacklist.topics.includes(t.id);
-    return `<label class="topic${on?" on":""}" data-id="${t.id}"><input type="checkbox" ${on?"checked":""}>${t.name}</label>`;
+    const st = filter.white.includes(t.id) ? "white" : filter.black.includes(t.id) ? "black" : "";
+    return `<span class="topic ${st}" data-id="${t.id}" data-st="${st}"><span class="st">${STATE_MARK[st]}</span>${t.name}</span>`;
   }).join("");
-  $("topics").querySelectorAll(".topic input").forEach(cb => {
-    cb.onchange = () => cb.parentElement.classList.toggle("on", cb.checked);
+  $("topics").querySelectorAll(".topic").forEach(el => {
+    el.onclick = () => {
+      const nx = { "":"white", white:"black", black:"" }[el.dataset.st];
+      el.dataset.st = nx; el.className = "topic " + nx;
+      el.querySelector(".st").textContent = STATE_MARK[nx];
+    };
   });
-  $("customBl").value = blacklist.custom;
+  $("customWl").value = filter.customWl;
+  $("customBl").value = filter.customBl;
   $("known").innerHTML = KNOWN_LEVELS.map(l=>`<option value="${l.v}" ${l.v===minLangs()?"selected":""}>${l.name}</option>`).join("");
 }
 function readSetup(){
-  blacklist.topics = [...$("topics").querySelectorAll(".topic")].filter(l => l.querySelector("input").checked).map(l => l.dataset.id);
-  blacklist.custom = $("customBl").value;
-  blacklist.langs = parseInt($("known").value,10);
-  localStorage.setItem("krr_blacklist", JSON.stringify(blacklist));
+  const els = [...$("topics").querySelectorAll(".topic")];
+  filter.white = els.filter(e => e.dataset.st==="white").map(e => e.dataset.id);
+  filter.black = els.filter(e => e.dataset.st==="black").map(e => e.dataset.id);
+  filter.customWl = $("customWl").value;
+  filter.customBl = $("customBl").value;
+  filter.langs = parseInt($("known").value,10);
+  localStorage.setItem("krr_filter", JSON.stringify(filter));
   buildKeywords();
 }
 
@@ -281,7 +321,8 @@ async function sitelinkCounts(qids){
 }
 
 async function findArticle(){
-  for(let attempt=0; attempt<30; attempt++){
+  const maxAttempts = (wlKeywords.length ? 80 : 30);   // s whitelistem je vhodných článků méně
+  for(let attempt=0; attempt<maxAttempts; attempt++){
     let cands = await randomBatch();
     const minL = minLangs();
     let counts = {};
@@ -301,7 +342,7 @@ async function findArticle(){
       if(!p || p.missing) continue;
       const extract = firstParagraph(p.extract);
       if(extract.length < MIN_EXTRACT) continue;
-      if(isBlacklisted((p.categories||[]).map(x=>x.title))) continue;
+      if(!passesFilter((p.categories||[]).map(x=>x.title))) continue;
       const cats = filterCats((p.categories||[]).map(x=>x.title), p.title);
       if(cats.length < MIN_CATS) continue;
       const art = await buildArticle(p, cats, extract);
@@ -430,9 +471,11 @@ function showAnswer(){
   const alt = it.answers.filter(a => normNoSpace(a)!==normNoSpace(it.title)).slice(0,8);
   $("accepted").textContent = (alt.length ? "Uznává se také: " + alt.join(", ") : "") + (it.langs ? (alt.length?" · ":"") + `🌍 ${it.langs} jazykových verzí` : "");
 
+  $("ansCats").innerHTML = it.cats.map(c=>`<li>${esc(c)}</li>`).join("");
   $("extract").textContent = it.extract;
   if(it.thumb){ $("thumb").src=it.thumb; $("thumb").classList.remove("hidden"); } else $("thumb").classList.add("hidden");
 }
+
 
 function next(){
   if(Date.now() - answerShownAt < 400) return;
@@ -465,7 +508,7 @@ document.addEventListener("keydown", e => {
   }
 });
 
-// Nastavení blacklistu (otevírá se tlačítkem během hry)
+// Nastavení filtru (otevírá se tlačítkem během hry)
 function showGame(){ $("setupView").classList.add("hidden"); $("gameCard").classList.remove("hidden"); }
 $("btnStart").onclick = () => {
   readSetup();
@@ -475,8 +518,8 @@ $("btnStart").onclick = () => {
 };
 $("btnBack").onclick = showGame;
 $("btnAll").onclick = () => {
-  $("topics").querySelectorAll(".topic input").forEach(cb => { cb.checked=false; cb.parentElement.classList.remove("on"); });
-  $("customBl").value = "";
+  $("topics").querySelectorAll(".topic").forEach(el => { el.dataset.st=""; el.className="topic"; el.querySelector(".st").textContent=STATE_MARK[""]; });
+  $("customWl").value = ""; $("customBl").value = "";
 };
 $("btnSettings").onclick = () => {
   renderSetup();
