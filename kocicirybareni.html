@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kočičí rybaření – hádej článek z Wikipedie</title>
+<style>
+  :root { --bg:#1f3b34; --card:#fdfaf3; --ink:#222; --acc:#c9852b; --ok:#2e8b57; --bad:#b33; --half:#d4a017; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: Georgia, "Times New Roman", serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; justify-content:center; padding:20px; }
+  .wrap { width:100%; max-width:640px; }
+  header { color:#fdfaf3; text-align:center; margin-bottom:14px; }
+  header h1 { margin:0; font-size:2rem; }
+  header .sub { opacity:.8; font-size:.95rem; }
+  .card { background:var(--card); border-radius:14px; padding:22px; box-shadow:0 6px 24px rgba(0,0,0,.3); }
+  .scorebar { display:flex; justify-content:flex-end; font-family:sans-serif; font-size:.9rem; color:#555; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #e3dccb; }
+  .qnum { font-family:sans-serif; color:#777; font-size:.9rem; margin-bottom:8px; }
+  ul.cats { list-style:none; padding:0; margin:0 0 18px; display:flex; flex-wrap:wrap; gap:6px; }
+  ul.cats li { background:#efe7d6; padding:6px 10px; border-radius:8px; font-family:sans-serif; font-size:.95rem; line-height:1.3; flex:0 1 auto; max-width:100%; }
+  input[type=text] { width:100%; padding:12px; font-size:1.1rem; border:2px solid #ccc; border-radius:8px; }
+  input[type=text]:focus { outline:none; border-color:var(--acc); }
+  .btns { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  .right { margin-left:auto; }
+  button { font-family:sans-serif; font-size:1rem; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; background:var(--acc); color:#fff; }
+  button.sec { background:#888; }
+  button.link { background:none; color:#555; text-decoration:underline; padding:4px; font-size:.9rem; }
+  .verdict { font-family:sans-serif; font-size:1.5rem; font-weight:bold; padding:12px 14px; border-radius:10px; margin-bottom:12px; color:#fff; }
+  .verdict.ok { background:var(--ok); } .verdict.bad { background:var(--bad); } .verdict.skip { background:#777; }
+  .verdict .yg { display:block; font-size:.95rem; font-weight:normal; margin-top:4px; opacity:.95; }
+  .anslabel { font-family:sans-serif; font-size:.85rem; color:#777; }
+  .answer { font-size:1.6rem; font-weight:bold; margin:2px 0 6px; }
+  .accepted { font-family:sans-serif; font-size:.82rem; color:#666; margin-bottom:10px; }
+  .extract { font-family:sans-serif; font-size:.95rem; color:#333; line-height:1.5; background:#f4eee0; border-left:4px solid var(--acc); padding:10px 12px; border-radius:6px; overflow:hidden; }
+  .thumb { float:right; max-width:120px; max-height:140px; margin:0 0 8px 12px; border-radius:6px; }
+  .dym { background:#fff4d6; border:1px solid var(--half); padding:12px; border-radius:8px; margin-top:10px; font-family:sans-serif; }
+  .hidden { display:none !important; }
+  .loading { text-align:center; font-family:sans-serif; padding:30px; }
+  details { font-family:sans-serif; font-size:.9rem; margin-top:14px; color:#444; }
+  .setup h2 { margin:0 0 6px; font-size:1.3rem; }
+  .setup p { font-family:sans-serif; font-size:.9rem; color:#555; margin:0 0 12px; }
+  .topics { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .topic { font-family:sans-serif; font-size:.95rem; display:flex; align-items:center; gap:6px; background:#efe7d6; padding:7px 11px; border-radius:20px; cursor:pointer; user-select:none; border:2px solid transparent; }
+  .topic input { margin:0; accent-color:var(--bad); }
+  .topic.on { background:#f6d9d9; border-color:var(--bad); text-decoration:line-through; color:#7a2222; }
+  .setup label.lbl { font-family:sans-serif; font-size:.9rem; display:block; margin:6px 0 4px; color:#444; }
+  .setup .small { font-family:sans-serif; font-size:.8rem; color:#777; margin-top:4px; }
+  .kbd { font-family:monospace; background:#eee; padding:1px 5px; border-radius:4px; border:1px solid #ccc; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Kočičí rybaření</h1>
+    <div class="sub">Uhodni náhodný článek z české Wikipedie podle jeho kategorií</div>
+  </header>
+
+  <!-- Nastavení blacklistu -->
+  <div class="card setup hidden" id="setupView">
+    <h2>🚫 Blacklist témat</h2>
+    <p>Označ témata, která nechceš hrát. Články, které mají kategorie z těchto témat, se nebudou zobrazovat.</p>
+    <div class="topics" id="topics"></div>
+    <label class="lbl" for="customBl">Vlastní slova (oddělená čárkou) – vyřadí článek, pokud jeho kategorie obsahuje slovo začínající tímto textem:</label>
+    <input type="text" id="customBl" placeholder="např. fotbalist, obce v okrese, brouci">
+    <label class="lbl" for="known" style="margin-top:14px">🌍 Známost článků (podle počtu jazykových verzí Wikipedie):</label>
+    <select id="known" style="width:100%;padding:10px;font-size:1rem;border-radius:8px;border:2px solid #ccc"></select>
+    <div class="small">Velikost písmen ani diakritika nehrají roli. Výběr se uloží pro příště.</div>
+    <div class="btns">
+      <button type="button" class="sec" id="btnAll">Vše povolit</button>
+      <button type="button" class="sec right" id="btnBack">Zpět bez změn</button>
+      <button type="button" id="btnStart">Uložit a pokračovat</button>
+    </div>
+  </div>
+
+  <div class="card" id="gameCard">
+    <div class="scorebar">
+      <button type="button" class="link" id="btnSettings" style="padding:0">⚙️ Blacklist</button>
+    </div>
+
+    <div id="loading" class="loading">Lovím náhodný článek z Wikipedie… 🎣</div>
+
+    <!-- Otázka -->
+    <div id="qView" class="hidden">
+      <div class="qnum" id="qnum"></div>
+      <ul class="cats" id="cats"></ul>
+      <input type="text" id="guess" placeholder="Tvůj tip…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <div class="btns">
+        <button type="button" id="btnSkip" class="sec">Přeskočit</button>
+        <button type="button" id="btnGuess" class="right">Hádat</button>
+      </div>
+      <div id="dymBox" class="dym hidden">
+        Mysleli jste <b id="dymTitle"></b>?
+        <div class="btns"><button type="button" id="dymYes">Ano</button><button type="button" id="dymNo" class="sec">Ne</button></div>
+      </div>
+    </div>
+
+    <!-- Odpověď -->
+    <div id="aView" class="hidden">
+      <div class="verdict" id="verdict"></div>
+      <div class="anslabel" id="ansLabel"></div>
+      <div class="answer" id="ansTitle"></div>
+      <div class="accepted" id="accepted"></div>
+      <div class="extract"><img id="thumb" class="thumb hidden" alt=""><span id="extract"></span></div>
+      <div class="btns" style="clear:both">
+        <button type="button" id="btnWiki" class="link">Otevřít na Wikipedii</button>
+        <button type="button" id="btnNext" class="right">Další otázka</button>
+      </div>
+    </div>
+
+    <details>
+      <summary>Jak hrát?</summary>
+      <ul>
+        <li>Každá otázka je náhodný článek z české Wikipedie. Hra nemá konec – hraj, dokud chceš.</li>
+        <li>Podle kategorií uhodni název článku.</li>
+        <li>Na velikosti písmen, diakritice ani textu v závorkách nezáleží.</li>
+        <li>Uznávají se i přesměrování z Wikipedie a aliasy z Wikidat. U osob stačí příjmení.</li>
+        <li>Při překlepu se hra zeptá „Mysleli jste…?“. Čísla musí být přesně.</li>
+        <li>Kategorie, které sdílejí slovo (resp. jeho kořen) s názvem, jsou skryty.</li>
+        <li>Klávesy: <span class="kbd">Enter</span> hádat / další, <span class="kbd">Esc</span> přeskočit, <span class="kbd">W</span> Wikipedie, <span class="kbd">A</span>/<span class="kbd">N</span> v dotazu „Mysleli jste“.</li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<script>
+// ====================== NASTAVENÍ ======================
+const MIN_CATS = 2;          // stačí 2 kategorie – filtruje se podle známosti
+const MIN_EXTRACT = 80;      // minimální délka úvodu (vyřadí prázdné pahýly)
+
+const API = "https://cs.wikipedia.org/w/api.php";
+const $ = id => document.getElementById(id);
+const STOP = new Set(["a","i","v","ve","na","do","z","ze","s","se","o","u","k","ke","za","po","pro","od","the","of","and","nebo","je","by","le","la","de","von","van","da","aneb"]);
+
+// ====================== POMOCNÉ FUNKCE ======================
+function stripDia(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ł/g,"l").replace(/Ł/g,"L"); }
+function norm(s){
+  return stripDia(String(s).toLowerCase())
+    .replace(/\([^)]*\)/g," ")
+    .replace(/[^a-z0-9 ]/g," ")
+    .replace(/^\s*(the|a|an)\s+/,"")
+    .replace(/\s+/g," ").trim();
+}
+function normNoSpace(s){ return norm(s).replace(/ /g,""); }
+function words(s){ return norm(s).split(" ").filter(w => w && !STOP.has(w)); }
+function nums(s){ return (norm(s).match(/\d+/g)||[]).join(",") + "|" + (String(s).match(/\b[IVXLCDM]+\b\.?/g)||[]).join(","); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Damerau-Levenshtein (OSA)
+function dist(a,b){
+  const m=a.length,n=b.length,d=[];
+  for(let i=0;i<=m;i++){d[i]=[i];}
+  for(let j=0;j<=n;j++){d[0][j]=j;}
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){
+    const c=a[i-1]===b[j-1]?0:1;
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);
+    if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);
+  }
+  return d[m][n];
+}
+function allowedEdits(len){ if(len<4)return 0; if(len<8)return 1; if(len<13)return 2; if(len<18)return 3; return 4; }
+
+async function api(params){
+  const url = API + "?" + new URLSearchParams({...params, format:"json", formatversion:"2", origin:"*"});
+  const r = await fetch(url); return r.json();
+}
+function stemMatch(a,b){
+  if(a===b) return true;
+  const k = Math.min(5, a.length, b.length);
+  if(k<4) return false;
+  return a.slice(0,k)===b.slice(0,k);
+}
+function firstParagraph(txt){
+  return (txt||"").split(/\n+/).map(s=>s.trim()).find(s=>s.length>0) || "";
+}
+
+// ====================== BLACKLIST TÉMAT ======================
+const TOPICS = [
+  { id:"sport",   name:"⚽ Sport", kw:["sport","fotbal","hokej","hokejist","tenis","atlet","basketbal","volejbal","hazen","florbal","cyklist","lyzar","biatlon","plavc","plavani","box","zapas","zavodni","olympi","mistrovstvi","trener","stadion","formule","motorsport","sachist","golf","rugby","baseball","kriket","olympijsk","sportovni","hraci","sezon","liga","ligy"] },
+  { id:"politika",name:"🏛️ Politika", kw:["politi","poslan","senator","senat","ministr","prezident","premier","volby","volebni","diplomat","velvyslan","starost","hejtman","zastupitel","parlament","komunist","strany"] },
+  { id:"obce",    name:"🏘️ Obce a místa", kw:["obce","obec","vesnice","mesta v","sidla","mistni casti","katastr","okres","osady","mestys","kraj"] },
+  { id:"priroda", name:"🐞 Živočichové a rostliny", kw:["celed","brouc","hmyz","motyl","pavouk","ptac","savc","ryby","obojzivel","plazi","mekkys","rostlin","houby","druhy","endemit","ohrozen","taxon","bezobratl","trav","stromy"] },
+  { id:"hudba",   name:"🎵 Hudba", kw:["hudb","zpevac","zpevak","alba","singly","pisne","raper","kytarist","bubenik","skladatel","kapel","hudebni","opery","dirigent","houslist","klavirist"] },
+  { id:"film",    name:"🎬 Film a TV", kw:["film","serial","herci","herecky","rezis","televiz","porad","animovan","scenarist","dabing"] },
+  { id:"nabozen", name:"⛪ Náboženství", kw:["cirkev","cirkv","kostel","kaple","svat","biskup","arcibiskup","knez","klaster","nabozen","papez","farnost","kanonizovan","reholn","teolog"] },
+  { id:"valka",   name:"⚔️ Vojenství a války", kw:["vojen","valk","bitv","armad","general","zbran","tank","valecn","letectv","namorn","ponork","bojov","pluk","divize"] },
+  { id:"doprava", name:"🚆 Doprava", kw:["zeleznic","stanice","silnic","dalnic","letist","tramvaj","metro","lokomotiv","automobil","autobus","doprav","trat","mosty","letadl","lode"] },
+  { id:"vesmir",  name:"🔭 Astronomie", kw:["planetk","asteroid","hvezd","galaxi","souhvezd","exoplanet","komet","mlhovin","kosmick"] },
+  { id:"slechta", name:"👑 Šlechta a panovníci", kw:["slecht","panovnic","panovnik","kral","knize","knizat","hrab","vevod","dynasti","manzelky","dcery","synove"] },
+  { id:"veda",    name:"🧪 Věda a technika", kw:["chemick","sloucenin","prvky","matemat","fyzik","biochem","leciv","nemoci","anatomie","geneti","software","programovac","pocitac","elektron"] }
+];
+const KNOWN_LEVELS = [
+  { v:80, name:"🌟 Jen velmi známé (80+ jazyků)" },
+  { v:40, name:"👍 Známé (40+ jazyků)" },
+  { v:20, name:"🙂 Středně známé (20+ jazyků)" },
+  { v:8,  name:"🤓 Méně známé (8+ jazyků)" },
+  { v:0,  name:"🎲 Cokoliv (i úplné obskurnosti)" }
+];
+
+let blacklist = Object.assign({topics:[],custom:"",langs:40}, JSON.parse(localStorage.getItem("krr_blacklist") || "{}"));
+let blKeywords = [];
+function minLangs(){ return blacklist.langs ?? 40; }
+
+function normKw(s){ return stripDia(String(s).toLowerCase()).replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," "); }
+function buildKeywords(){
+  const kws = [];
+  TOPICS.filter(t => blacklist.topics.includes(t.id)).forEach(t => kws.push(...t.kw));
+  blacklist.custom.split(",").forEach(k => kws.push(k));
+  blKeywords = [...new Set(kws.map(k => normKw(k).trim()))].filter(Boolean);
+}
+function isBlacklisted(rawCats){
+  if(!blKeywords.length) return false;
+  return rawCats.some(c => {
+    const n = " " + normKw(c.replace(/^Kategorie:/,"")) + " ";
+    return blKeywords.some(k => n.includes(" " + k));
+  });
+}
+function renderSetup(){
+  $("topics").innerHTML = TOPICS.map(t => {
+    const on = blacklist.topics.includes(t.id);
+    return `<label class="topic${on?" on":""}" data-id="${t.id}"><input type="checkbox" ${on?"checked":""}>${t.name}</label>`;
+  }).join("");
+  $("topics").querySelectorAll(".topic input").forEach(cb => {
+    cb.onchange = () => cb.parentElement.classList.toggle("on", cb.checked);
+  });
+  $("customBl").value = blacklist.custom;
+  $("known").innerHTML = KNOWN_LEVELS.map(l=>`<option value="${l.v}" ${l.v===minLangs()?"selected":""}>${l.name}</option>`).join("");
+}
+function readSetup(){
+  blacklist.topics = [...$("topics").querySelectorAll(".topic")].filter(l => l.querySelector("input").checked).map(l => l.dataset.id);
+  blacklist.custom = $("customBl").value;
+  blacklist.langs = parseInt($("known").value,10);
+  localStorage.setItem("krr_blacklist", JSON.stringify(blacklist));
+  buildKeywords();
+}
+
+// ====================== VÝBĚR KATEGORIÍ ======================
+function filterCats(rawCats, title){
+  const baseTitle = title.replace(/\s*\(.*\)\s*$/,"");
+  const tWords = words(baseTitle);
+  const tn = normNoSpace(baseTitle);
+  return rawCats.map(c => c.replace(/^Kategorie:/,""))
+    .filter(c => !/^(Údržba|Monitoring|Wikipedie|Žijící lidé|Muži|Ženy|Články|Stránky|Rozcestníky|Pahýly)/i.test(c))
+    .filter(c => {
+      if (words(c).some(w => tWords.some(t => stemMatch(w,t)))) return false;
+      const cn = normNoSpace(c);
+      if (cn===tn || stemMatch(cn,tn) && Math.abs(cn.length-tn.length)<=3) return false;
+      return true;
+    })
+    .sort((a,b)=>a.localeCompare(b,"cs"));
+}
+
+// ====================== NÁHODNÝ ČLÁNEK ======================
+const seen = new Set(JSON.parse(localStorage.getItem("krr_seen")||"[]"));
+function rememberSeen(t){
+  seen.add(t);
+  localStorage.setItem("krr_seen", JSON.stringify([...seen].slice(-2000)));
+}
+
+async function randomBatch(){
+  const res = await Promise.all([0,1].map(()=>api({
+    action:"query", generator:"random", grnnamespace:"0", grnlimit:"50", grnfilterredir:"nonredirects",
+    prop:"pageprops", ppprop:"wikibase_item|disambiguation"
+  }).catch(()=>({}))));
+  const pages = res.flatMap(d => (d.query && d.query.pages) || []);
+  return pages.filter(p => !seen.has(p.title) && p.pageprops && p.pageprops.wikibase_item
+    && !("disambiguation" in p.pageprops) && !/^Seznam|^\d{1,4}$/.test(p.title));
+}
+
+// Počet jazykových verzí Wikipedie (sitelinks z Wikidat)
+async function sitelinkCounts(qids){
+  const out = {};
+  for(let i=0;i<qids.length;i+=50){
+    const chunk = qids.slice(i,i+50);
+    try{
+      const d = await (await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${chunk.join("|")}&props=sitelinks&format=json&origin=*`)).json();
+      for(const [id,e] of Object.entries(d.entities||{})){
+        out[id] = Object.keys(e.sitelinks||{}).filter(k => /^[a-z_]+wiki$/.test(k) && !/^(commons|species|meta|mediawiki|wikidata|sources|incubator|outreach|wikimania)wiki$/.test(k)).length;
+      }
+    }catch(e){}
+  }
+  return out;
+}
+
+async function findArticle(){
+  for(let attempt=0; attempt<30; attempt++){
+    let cands = await randomBatch();
+    const minL = minLangs();
+    let counts = {};
+    if(minL > 0){
+      counts = await sitelinkCounts([...new Set(cands.map(p=>p.pageprops.wikibase_item))]);
+      cands = cands.filter(p => (counts[p.pageprops.wikibase_item]||0) >= minL);
+    }
+    cands.sort(() => Math.random()-.5);
+    for(const c of cands){
+      const d = await api({
+        action:"query", titles:c.title,
+        prop:"categories|extracts|pageimages|pageprops",
+        clshow:"!hidden", cllimit:"max",
+        exintro:"1", explaintext:"1", pithumbsize:"200", ppprop:"wikibase_item"
+      });
+      const p = d.query && d.query.pages && d.query.pages[0];
+      if(!p || p.missing) continue;
+      const extract = firstParagraph(p.extract);
+      if(extract.length < MIN_EXTRACT) continue;
+      if(isBlacklisted((p.categories||[]).map(x=>x.title))) continue;
+      const cats = filterCats((p.categories||[]).map(x=>x.title), p.title);
+      if(cats.length < MIN_CATS) continue;
+      const art = await buildArticle(p, cats, extract);
+      art.langs = counts[c.pageprops.wikibase_item];
+      return art;
+    }
+  }
+  throw new Error("Nenalezen vhodný článek");
+}
+
+async function buildArticle(p, cats, extract){
+  const realTitle = p.title;
+  const baseTitle = realTitle.replace(/\s*\(.*\)\s*$/,"");
+  const answers = new Set([realTitle, baseTitle]);
+
+  try{
+    const r = await api({ action:"query", titles:realTitle, prop:"redirects", rdlimit:"max", rdnamespace:"0" });
+    ((r.query.pages[0]||{}).redirects||[]).forEach(x => { if(!x.fragment) answers.add(x.title); });
+  }catch(e){}
+
+  const qid = p.pageprops && p.pageprops.wikibase_item;
+  if(qid){
+    try{
+      const wd = await (await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=aliases|labels&languages=cs|en&format=json&origin=*`)).json();
+      const e = wd.entities[qid];
+      ["cs","en"].forEach(l=>{
+        if(e.labels&&e.labels[l]) answers.add(e.labels[l].value);
+        ((e.aliases&&e.aliases[l])||[]).forEach(a=>answers.add(a.value));
+      });
+    }catch(e){}
+  }
+
+  const isPerson = (p.categories||[]).some(c => /Kategorie:(Narození|Úmrtí|Muži|Ženy|Žijící lidé)/.test(c.title));
+  if(isPerson){
+    const parts = baseTitle.replace(/\b[IVX]+\.$/,"").trim().split(" ");
+    if(parts.length>1) answers.add(parts[parts.length-1]);
+  }
+
+  const catNorm = new Set(cats.map(norm));
+  const final = [...answers].filter(a => {
+    const n = norm(a);
+    if(!n) return false;
+    if(catNorm.has(n)) return false;
+    if(/^(hlavni mesto|mena|statni hymna|capital of|currency|national anthem)/.test(n)) return false;
+    return true;
+  });
+
+  return { title: realTitle, cats, answers: final, extract, thumb: p.thumbnail && p.thumbnail.source };
+}
+
+let nextPromise = null;
+function prefetch(){ nextPromise = findArticle().catch(()=>null); }
+
+// ====================== HRA ======================
+let current = null, result = null, pendingDym = null, answerShownAt = 0, qCount = 0;
+
+async function newQuestion(){
+  $("qView").classList.add("hidden"); $("aView").classList.add("hidden");
+  $("loading").textContent = "Lovím náhodný článek z Wikipedie… 🎣";
+  $("loading").classList.remove("hidden");
+  let art = nextPromise ? await nextPromise : null;
+  if(!art){ try{ art = await findArticle(); }catch(e){ art = null; } }
+  if(!art){
+    $("loading").innerHTML = 'Nepodařilo se načíst článek. <button type="button" id="btnRetry">Zkusit znovu</button>';
+    $("btnRetry").onclick = () => { nextPromise=null; newQuestion(); };
+    return;
+  }
+  current = art; result = null; qCount++;
+  rememberSeen(art.title);
+  prefetch();
+  $("loading").classList.add("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  $("qnum").textContent = `Otázka ${qCount} · ${current.cats.length} kategorií`;
+  $("cats").innerHTML = current.cats.map(c=>`<li>${esc(c)}</li>`).join("");
+  $("guess").value = ""; $("dymBox").classList.add("hidden"); pendingDym = null;
+  $("aView").classList.add("hidden"); $("qView").classList.remove("hidden");
+  $("guess").focus();
+}
+
+function checkGuess(g){
+  const ng = normNoSpace(g);
+  if(!ng) return { type:"empty" };
+  for(const a of current.answers) if(normNoSpace(a)===ng) return { type:"ok" };
+  for(const a of current.answers){
+    if(nums(a)!==nums(g)) continue;
+    if(dist(norm(g), norm(a)) <= allowedEdits(norm(g).length)) return { type:"dym" };
+  }
+  return { type:"bad" };
+}
+
+function submitGuess(){
+  if(pendingDym!==null || result) return;
+  const g = $("guess").value.trim();
+  const res = checkGuess(g);
+  if(res.type==="empty") return;
+  if(res.type==="dym"){ pendingDym=g; $("dymTitle").textContent=current.title; $("dymBox").classList.remove("hidden"); return; }
+  record(g, res.type==="ok");
+}
+
+function record(guess, ok){
+  if(result) return;
+  pendingDym = null;
+  result = { guess, ok };
+  showAnswer();
+}
+
+function showAnswer(){
+  const r = result, it = current;
+  $("guess").blur();
+  $("qView").classList.add("hidden"); $("aView").classList.remove("hidden");
+  answerShownAt = Date.now();
+
+  const v = $("verdict");
+  let cls, txt;
+  if(r.ok){ cls="ok"; txt="✅ Správně!"; }
+  else if(r.guess){ cls="bad"; txt="❌ Špatně"; }
+  else { cls="skip"; txt="⏭️ Přeskočeno"; }
+  v.className = "verdict " + cls;
+  v.innerHTML = esc(txt) + (r.guess ? `<span class="yg">Tvůj tip: ${esc(r.guess)}</span>` : "");
+
+  $("ansLabel").textContent = r.ok ? "Odpověď:" : "Správná odpověď:";
+  $("ansTitle").textContent = it.title;
+  const alt = it.answers.filter(a => normNoSpace(a)!==normNoSpace(it.title)).slice(0,8);
+  $("accepted").textContent = (alt.length ? "Uznává se také: " + alt.join(", ") : "") + (it.langs ? (alt.length?" · ":"") + `🌍 ${it.langs} jazykových verzí` : "");
+
+  $("extract").textContent = it.extract;
+  if(it.thumb){ $("thumb").src=it.thumb; $("thumb").classList.remove("hidden"); } else $("thumb").classList.add("hidden");
+}
+
+function next(){
+  if(Date.now() - answerShownAt < 400) return;
+  newQuestion();
+}
+
+// ====================== UDÁLOSTI ======================
+$("btnGuess").onclick = submitGuess;
+$("btnSkip").onclick = () => { if(pendingDym===null) record("", false); };
+$("dymYes").onclick = () => { if(pendingDym!==null) record(pendingDym, true); };
+$("dymNo").onclick = () => { if(pendingDym!==null) record(pendingDym, false); };
+$("btnNext").onclick = next;
+$("btnWiki").onclick = () => window.open("https://cs.wikipedia.org/wiki/"+encodeURIComponent(current.title), "_blank");
+
+document.addEventListener("keydown", e => {
+  if(e.repeat) return;
+  if(!$("setupView").classList.contains("hidden")) return;
+  const q = !$("qView").classList.contains("hidden"), a = !$("aView").classList.contains("hidden");
+  if(q){
+    if(pendingDym!==null){
+      if(["a","A","Enter"].includes(e.key)){ e.preventDefault(); $("dymYes").click(); }
+      else if(["n","N","Escape"].includes(e.key)){ e.preventDefault(); $("dymNo").click(); }
+      return;
+    }
+    if(e.key==="Enter"){ e.preventDefault(); submitGuess(); }
+    else if(e.key==="Escape"){ e.preventDefault(); $("btnSkip").click(); }
+  } else if(a){
+    if(e.key==="Enter"){ e.preventDefault(); next(); }
+    else if(e.key==="w"||e.key==="W") $("btnWiki").click();
+  }
+});
+
+// Nastavení blacklistu (otevírá se tlačítkem během hry)
+function showGame(){ $("setupView").classList.add("hidden"); $("gameCard").classList.remove("hidden"); }
+$("btnStart").onclick = () => {
+  readSetup();
+  showGame();
+  nextPromise = null; prefetch();
+  if(!current) newQuestion();
+};
+$("btnBack").onclick = showGame;
+$("btnAll").onclick = () => {
+  $("topics").querySelectorAll(".topic input").forEach(cb => { cb.checked=false; cb.parentElement.classList.remove("on"); });
+  $("customBl").value = "";
+};
+$("btnSettings").onclick = () => {
+  renderSetup();
+  $("gameCard").classList.add("hidden"); $("setupView").classList.remove("hidden");
+};
+
+// Start: rovnou hra s uloženým nastavením
+buildKeywords();
+newQuestion();
+</script>
+</body>
+</html>
