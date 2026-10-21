@@ -13,7 +13,7 @@
   header h1 { margin:0; font-size:2rem; }
   header .sub { opacity:.8; font-size:.95rem; }
   .card { background:var(--card); border-radius:14px; padding:22px; box-shadow:0 6px 24px rgba(0,0,0,.3); }
-  .scorebar { display:flex; justify-content:flex-end; font-family:sans-serif; font-size:.9rem; color:#555; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #e3dccb; }
+  .scorebar { display:flex; align-items:center; gap:10px; font-family:sans-serif; font-size:.9rem; color:#555; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #e3dccb; }
   .qnum { font-family:sans-serif; color:#777; font-size:.9rem; margin-bottom:8px; }
   ul.cats { list-style:none; padding:0; margin:0 0 18px; display:flex; flex-wrap:wrap; gap:6px; }
   ul.cats li { background:#efe7d6; padding:6px 10px; border-radius:8px; font-family:sans-serif; font-size:.95rem; line-height:1.3; flex:0 1 auto; max-width:100%; }
@@ -69,7 +69,7 @@
     <input type="text" id="customBl" placeholder="např. fotbalist, obce v okrese, brouci">
     <div class="small">Slovo se hledá jako začátek slova v názvech kategorií článku. Velikost písmen ani diakritika nehrají roli.</div>
 
-    <label class="lbl" for="known" style="margin-top:14px">🌍 Známost článků (podle počtu jazykových verzí Wikipedie):</label>
+    <label class="lbl" for="known" style="margin-top:14px">Známost článků (podle počtu jazykových verzí Wikipedie):</label>
     <select id="known" style="width:100%;padding:10px;font-size:1rem;border-radius:8px;border:2px solid #ccc"></select>
     <div class="small">Nastavení se uloží pro příště.</div>
     <div class="btns">
@@ -81,7 +81,8 @@
 
   <div class="card" id="gameCard">
     <div class="scorebar">
-      <button type="button" class="link" id="btnSettings" style="padding:0">⚙️ Filtr</button>
+      <div class="verdict hidden" id="verdict"></div>
+      <button type="button" class="link right" id="btnSettings" style="padding:0">Filtr</button>
     </div>
 
     <div id="loading" class="loading">Lovím náhodný článek z Wikipedie… 🎣</div>
@@ -111,7 +112,6 @@
       <div class="btns" style="clear:both">
         <button type="button" id="btnWiki" class="link">Otevřít na Wikipedii</button>
         <button type="button" id="btnNext" class="right">Další otázka</button>
-        <div class="verdict" id="verdict"></div>
       </div>
     </div>
 
@@ -183,25 +183,25 @@ function firstParagraph(txt){
 
 // ====================== TÉMATA PRO FILTR ======================
 const TOPICS = [
-  { id:"sport",   name:"⚽ Sport", kw:["sport","fotbal","hokej","hokejist","tenis","atlet","basketbal","volejbal","hazen","florbal","cyklist","lyzar","biatlon","plavc","plavani","box","zapas","zavodni","olympi","mistrovstvi","trener","stadion","formule","motorsport","sachist","golf","rugby","baseball","kriket","olympijsk","sportovni","hraci","sezon","liga","ligy"] },
-  { id:"politika",name:"🏛️ Politika", kw:["politi","poslan","senator","senat","ministr","prezident","premier","volby","volebni","diplomat","velvyslan","starost","hejtman","zastupitel","parlament","komunist","strany"] },
-  { id:"obce",    name:"🏘️ Obce a místa", kw:["obce","obec","vesnice","mesta v","sidla","mistni casti","katastr","okres","osady","mestys","kraj"] },
-  { id:"priroda", name:"🐞 Živočichové a rostliny", kw:["celed","brouc","hmyz","motyl","pavouk","ptac","savc","ryby","obojzivel","plazi","mekkys","rostlin","houby","druhy","endemit","ohrozen","taxon","bezobratl","trav","stromy"] },
-  { id:"hudba",   name:"🎵 Hudba", kw:["hudb","zpevac","zpevak","alba","singly","pisne","raper","kytarist","bubenik","skladatel","kapel","hudebni","opery","dirigent","houslist","klavirist"] },
-  { id:"film",    name:"🎬 Film a TV", kw:["film","serial","herci","herecky","rezis","televiz","porad","animovan","scenarist","dabing"] },
-  { id:"nabozen", name:"⛪ Náboženství", kw:["cirkev","cirkv","kostel","kaple","svat","biskup","arcibiskup","knez","klaster","nabozen","papez","farnost","kanonizovan","reholn","teolog"] },
-  { id:"valka",   name:"⚔️ Vojenství a války", kw:["vojen","valk","bitv","armad","general","zbran","tank","valecn","letectv","namorn","ponork","bojov","pluk","divize"] },
-  { id:"doprava", name:"🚆 Doprava", kw:["zeleznic","stanice","silnic","dalnic","letist","tramvaj","metro","lokomotiv","automobil","autobus","doprav","trat","mosty","letadl","lode"] },
-  { id:"vesmir",  name:"🔭 Astronomie", kw:["planetk","asteroid","hvezd","galaxi","souhvezd","exoplanet","komet","mlhovin","kosmick"] },
-  { id:"slechta", name:"👑 Šlechta a panovníci", kw:["slecht","panovnic","panovnik","kral","knize","knizat","hrab","vevod","dynasti","manzelky","dcery","synove"] },
-  { id:"veda",    name:"🧪 Věda a technika", kw:["chemick","sloucenin","prvky","matemat","fyzik","biochem","leciv","nemoci","anatomie","geneti","software","programovac","pocitac","elektron"] }
+  { id:"sport",   name:"Sport", kw:["sport","fotbal","hokej","hokejist","tenis","atlet","basketbal","volejbal","hazen","florbal","cyklist","lyzar","biatlon","plavc","plavani","box","zapas","zavodni","olympi","mistrovstvi","trener","stadion","formule","motorsport","sachist","golf","rugby","baseball","kriket","olympijsk","sportovni","hraci","sezon","liga","ligy"] },
+  { id:"politika",name:"Politika", kw:["politi","poslan","senator","senat","ministr","prezident","premier","volby","volebni","diplomat","velvyslan","starost","hejtman","zastupitel","parlament","komunist","strany"] },
+  { id:"obce",    name:"Obce a místa", kw:["obce","obec","vesnice","mesta v","sidla","mistni casti","katastr","okres","osady","mestys","kraj"] },
+  { id:"priroda", name:"Živočichové a rostliny", kw:["celed","brouc","hmyz","motyl","pavouk","ptac","savc","ryby","obojzivel","plazi","mekkys","rostlin","houby","druhy","endemit","ohrozen","taxon","bezobratl","trav","stromy"] },
+  { id:"hudba",   name:"Hudba", kw:["hudb","zpevac","zpevak","alba","singly","pisne","raper","kytarist","bubenik","skladatel","kapel","hudebni","opery","dirigent","houslist","klavirist"] },
+  { id:"film",    name:"Film a TV", kw:["film","serial","herci","herecky","rezis","televiz","porad","animovan","scenarist","dabing"] },
+  { id:"nabozen", name:"Náboženství", kw:["cirkev","cirkv","kostel","kaple","svat","biskup","arcibiskup","knez","klaster","nabozen","papez","farnost","kanonizovan","reholn","teolog"] },
+  { id:"valka",   name:"Vojenství a války", kw:["vojen","valk","bitv","armad","general","zbran","tank","valecn","letectv","namorn","ponork","bojov","pluk","divize"] },
+  { id:"doprava", name:"Doprava", kw:["zeleznic","stanice","silnic","dalnic","letist","tramvaj","metro","lokomotiv","automobil","autobus","doprav","trat","mosty","letadl","lode"] },
+  { id:"vesmir",  name:"Astronomie", kw:["planetk","asteroid","hvezd","galaxi","souhvezd","exoplanet","komet","mlhovin","kosmick"] },
+  { id:"slechta", name:"Šlechta a panovníci", kw:["slecht","panovnic","panovnik","kral","knize","knizat","hrab","vevod","dynasti","manzelky","dcery","synove"] },
+  { id:"veda",    name:"Věda a technika", kw:["chemick","sloucenin","prvky","matemat","fyzik","biochem","leciv","nemoci","anatomie","geneti","software","programovac","pocitac","elektron"] }
 ];
 const KNOWN_LEVELS = [
-  { v:80, name:"🌟 Jen velmi známé (80+ jazyků)" },
-  { v:40, name:"👍 Známé (40+ jazyků)" },
-  { v:20, name:"🙂 Středně známé (20+ jazyků)" },
-  { v:8,  name:"🤓 Méně známé (8+ jazyků)" },
-  { v:0,  name:"🎲 Cokoliv (i úplné obskurnosti)" }
+  { v:80, name:"Jen velmi známé (80+ jazyků)" },
+  { v:40, name:"Známé (40+ jazyků)" },
+  { v:20, name:"Středně známé (20+ jazyků)" },
+  { v:8,  name:"Méně známé (8+ jazyků)" },
+  { v:0,  name:"Cokoliv (i úplné obskurnosti)" }
 ];
 
 // Filtr: whitelist + blacklist (témata i vlastní slova)
@@ -396,6 +396,7 @@ let current = null, result = null, pendingDym = null, answerShownAt = 0, qCount 
 
 async function newQuestion(){
   $("qView").classList.add("hidden"); $("aView").classList.add("hidden");
+  $("verdict").classList.add("hidden");
   $("loading").textContent = "Lovím náhodný článek z Wikipedie… 🎣";
   $("loading").classList.remove("hidden");
   let art = nextPromise ? await nextPromise : null;
@@ -458,12 +459,12 @@ function showAnswer(){
   if(r.ok){ cls="ok"; txt="✅ Správně!"; }
   else if(r.guess){ cls="bad"; txt="❌ Špatně"; }
   else { cls="skip"; txt="⏭️ Přeskočeno"; }
-  v.className = "verdict " + cls;
+  v.className = "verdict " + cls;   // zobrazí štítek
   v.innerHTML = esc(txt) + (r.guess ? `<span class="yg">Tvůj tip: ${esc(r.guess)}</span>` : "");
 
   $("ansLabel").textContent = r.ok ? "Odpověď:" : "Správná odpověď:";
   $("ansTitle").textContent = it.title;
-  $("accepted").textContent = it.langs ? `🌍 ${it.langs} jazykových verzí` : "";
+  $("accepted").textContent = it.langs ? `${it.langs} jazykových verzí` : "";
 
   $("ansCats").innerHTML = it.cats.map(c=>`<li>${esc(c)}</li>`).join("");
   $("extract").textContent = it.extract;
