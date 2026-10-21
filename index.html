@@ -24,9 +24,9 @@
   button { font-family:sans-serif; font-size:1rem; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; background:var(--acc); color:#fff; }
   button.sec { background:#888; }
   button.link { background:none; color:#555; text-decoration:underline; padding:4px; font-size:.9rem; }
-  .verdict { font-family:sans-serif; font-size:1.5rem; font-weight:bold; padding:12px 14px; border-radius:10px; margin-bottom:12px; color:#fff; }
+  .verdict { font-family:sans-serif; font-size:1rem; font-weight:bold; padding:6px 12px; border-radius:8px; color:#fff; line-height:1.25; }
   .verdict.ok { background:var(--ok); } .verdict.bad { background:var(--bad); } .verdict.skip { background:#777; }
-  .verdict .yg { display:block; font-size:.95rem; font-weight:normal; margin-top:4px; opacity:.95; }
+  .verdict .yg { display:block; font-size:.82rem; font-weight:normal; opacity:.95; }
   .anslabel { font-family:sans-serif; font-size:.85rem; color:#777; }
   .answer { font-size:1.6rem; font-weight:bold; margin:2px 0 6px; }
   .accepted { font-family:sans-serif; font-size:.82rem; color:#666; margin-bottom:10px; }
@@ -43,11 +43,9 @@
   .topic .st { font-weight:bold; width:1em; text-align:center; }
   .topic.white { background:#d7efdf; border-color:var(--ok); color:#1d5a37; }
   .topic.black { background:#f6d9d9; border-color:var(--bad); text-decoration:line-through; color:#7a2222; }
-  .setup h3 { font-family:sans-serif; font-size:1rem; margin:16px 0 4px; }
   .setup label.lbl { font-family:sans-serif; font-size:.9rem; display:block; margin:6px 0 4px; color:#444; }
   .setup .small { font-family:sans-serif; font-size:.8rem; color:#777; margin-top:4px; }
-  .catlabel { font-family:sans-serif; font-size:.85rem; color:#777; margin:12px 0 6px; }
-  ul.cats.ans { margin-bottom:12px; }
+  ul.cats.ans { clear:both; margin:12px 0 0; }
   .kbd { font-family:monospace; background:#eee; padding:1px 5px; border-radius:4px; border:1px solid #ccc; }
 </style>
 </head>
@@ -105,16 +103,15 @@
 
     <!-- Odpověď -->
     <div id="aView" class="hidden">
-      <div class="verdict" id="verdict"></div>
       <div class="anslabel" id="ansLabel"></div>
       <div class="answer" id="ansTitle"></div>
       <div class="accepted" id="accepted"></div>
-      <div class="catlabel">Kategorie:</div>
-      <ul class="cats ans" id="ansCats"></ul>
       <div class="extract"><img id="thumb" class="thumb hidden" alt=""><span id="extract"></span></div>
+      <ul class="cats ans" id="ansCats"></ul>
       <div class="btns" style="clear:both">
         <button type="button" id="btnWiki" class="link">Otevřít na Wikipedii</button>
         <button type="button" id="btnNext" class="right">Další otázka</button>
+        <div class="verdict" id="verdict"></div>
       </div>
     </div>
 
@@ -210,7 +207,6 @@ const KNOWN_LEVELS = [
 // Filtr: whitelist + blacklist (témata i vlastní slova)
 let filter = (() => {
   const f = Object.assign({white:[],black:[],customWl:"",customBl:"",langs:40}, JSON.parse(localStorage.getItem("krr_filter") || "{}"));
-  // převzetí starého nastavení blacklistu
   const old = JSON.parse(localStorage.getItem("krr_blacklist") || "null");
   if(old && !localStorage.getItem("krr_filter")){
     f.black = old.topics || []; f.customBl = old.custom || ""; f.langs = old.langs ?? 40;
@@ -243,7 +239,6 @@ function passesFilter(rawCats){
   return true;
 }
 
-// Stav tématu v nastavení: "" / "white" / "black"
 const STATE_MARK = { "":"○", white:"✓", black:"✗" };
 function renderSetup(){
   $("topics").innerHTML = TOPICS.map(t => {
@@ -321,7 +316,7 @@ async function sitelinkCounts(qids){
 }
 
 async function findArticle(){
-  const maxAttempts = (wlKeywords.length ? 80 : 30);   // s whitelistem je vhodných článků méně
+  const maxAttempts = (wlKeywords.length ? 80 : 30);
   for(let attempt=0; attempt<maxAttempts; attempt++){
     let cands = await randomBatch();
     const minL = minLangs();
@@ -468,8 +463,7 @@ function showAnswer(){
 
   $("ansLabel").textContent = r.ok ? "Odpověď:" : "Správná odpověď:";
   $("ansTitle").textContent = it.title;
-  const alt = it.answers.filter(a => normNoSpace(a)!==normNoSpace(it.title)).slice(0,8);
-  $("accepted").textContent = (alt.length ? "Uznává se také: " + alt.join(", ") : "") + (it.langs ? (alt.length?" · ":"") + `🌍 ${it.langs} jazykových verzí` : "");
+  $("accepted").textContent = it.langs ? `🌍 ${it.langs} jazykových verzí` : "";
 
   $("ansCats").innerHTML = it.cats.map(c=>`<li>${esc(c)}</li>`).join("");
   $("extract").textContent = it.extract;
